@@ -2,7 +2,7 @@ import streamlit as st
 import math
 
 # App Title & Styling
-st.set_page_config(page_title="Math & Finance Tool", page_icon="📈")
+st.set_page_config(page_title="Maths & Finance Tool", page_icon="📈")
 st.title("🧮 Logic & Level Calculator")
 
 # Sidebar for Navigation
@@ -38,4 +38,4 @@ elif option == 'Fibonacci Retracement':
         st.warning("High price should be greater than low price for retracement calculation.")
     else:
         diff = high_price - low_price
-        ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.7
+        ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.7]
