@@ -1,101 +1,97 @@
 import streamlit as st
 import math
-
-# App Title & Styling
-st.set_page_config(page_title="Maths & Finance Tool", page_icon="📈")
-st.title("🧮 Logic & Level Calculator")
-
-# Sidebar for Navigation
-option = st.sidebar.selectbox(
-    'Select a Tool',
-    ('Square & Square Root', 'Fibonacci Retracement')
-)
-
-if option == 'Square & Square Root':
-    st.header("Basic Math Calculator")
-    number = st.number_input("Enter a number:", value=0.0)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.metric("Square", number ** 2)
-        
-    with col2:
-        if number >= 0:
-            st.metric("Square Root", round(math.sqrt(number), 4))
-        else:
-            st.error("Cannot calculate square root of a negative number.")
-
-elif option == 'Fibonacci Retracement':
-    st.header("Fibonacci Retracement Levels")
-    st.write("Used to identify potential support and resistance levels.")
-    
-    # Input for High and Low prices
-    high_price = st.number_input("Recent High Price", value=100.0)
-    low_price = st.number_input("Recent Low Price", value=50.0)
-    
-    if high_price <= low_price:
-        st.warning("High price should be greater than low price for retracement calculation.")
-    else:
-        diff = high_price - low_price
-        ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.7]
-        import streamlit as st
-import math
+import yfinance as yf
 from fpdf import FPDF
 
-# Function to create PDF
-def create_pdf(data, high, low):
+# --- PDF GENERATOR FUNCTION ---
+def create_pdf(data, high, low, title="Fibonacci Report"):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Fibonacci Retracement Report", ln=True, align='C')
+    pdf.cell(200, 10, txt=title, ln=True, align='C')
     
     pdf.set_font("Arial", size=12)
     pdf.ln(10)
-    pdf.cell(200, 10, txt=f"High Price: {high}", ln=True)
-    pdf.cell(200, 10, txt=f"Low Price: {low}", ln=True)
+    pdf.cell(200, 10, txt=f"Reference High: {high}", ln=True)
+    pdf.cell(200, 10, txt=f"Reference Low: {low}", ln=True)
     pdf.ln(5)
     
-    # Table Header
     pdf.set_fill_color(200, 220, 255)
-    pdf.cell(95, 10, "Fibonacci Level (%)", border=1, fill=True)
-    pdf.cell(95, 10, "Price", border=1, ln=True, fill=True)
+    pdf.cell(95, 10, "Level (%)", border=1, fill=True)
+    pdf.cell(95, 10, "Price / Value", border=1, ln=True, fill=True)
     
-    # Table Body
     for item in data:
-        pdf.cell(95, 10, item["Level (%)"], border=1)
-        pdf.cell(95, 10, item["Price"], border=1, ln=True)
+        pdf.cell(95, 10, str(item["Level"]), border=1)
+        pdf.cell(95, 10, str(item["Value"]), border=1, ln=True)
         
     return pdf.output(dest='S').encode('latin-1')
 
-# --- Existing App Logic ---
-# (Inside your Fibonacci 'if' block)
+# --- APP LAYOUT ---
+st.set_page_config(page_title="Pro Math & Finance Hub", layout="wide")
+st.sidebar.title("Navigation")
+tool = st.sidebar.radio("Go to:", ["Live Nifty & Fibonacci", "Square Root & Math"])
 
-if option == 'Fibonacci Retracement':
-    st.header("Fibonacci Retracement Levels")
-    high_price = st.number_input("Recent High Price", value=100.0)
-    low_price = st.number_input("Recent Low Price", value=50.0)
+# --- TOOL 1: LIVE NIFTY & FIBONACCI ---
+if tool == "Live Nifty & Fibonacci":
+    st.header("📈 Live Nifty 50 & Fibonacci Levels")
     
-    if st.button('Calculate Retracements'):
-        if high_price <= low_price:
-            st.warning("High price must be greater than low price.")
+    # Fetch Live Nifty Data
+    with st.spinner("Fetching live market data..."):
+        nifty = yf.Ticker("^NSEI")
+        hist = nifty.history(period="1d")
+        if not hist.empty:
+            current_price = hist['Close'].iloc[-1]
+            st.metric("NIFTY 50 Current Price", f"₹{current_price:,.2f}")
         else:
-            diff = high_price - low_price
-            ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
-            
-            results = []
-            for ratio in ratios:
-                level_price = high_price - (diff * ratio)
-                results.append({"Level (%)": f"{ratio*100:.1f}%", "Price": f"{level_price:.2f}"})
-            
-            st.table(results)
-            
-            # Generate PDF
-            pdf_bytes = create_pdf(results, high_price, low_price)
-            
-            st.download_button(
-                label="📥 Download Report as PDF",
-                data=pdf_bytes,
-                file_name="fibonacci_report.pdf",
-                mime="application/pdf"
-            )
+            st.error("Could not fetch live price. Check your internet connection.")
+            current_price = 0
+
+    st.divider()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        high_p = st.number_input("Enter High Price", value=float(current_price))
+    with col2:
+        low_p = st.number_input("Enter Low Price", value=float(current_price * 0.95))
+
+    if st.button("Calculate & Generate Report"):
+        diff = high_p - low_p
+        ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
+        results = []
+        
+        for r in ratios:
+            val = high_p - (diff * r)
+            results.append({"Level": f"{r*100:.1f}%", "Value": round(val, 2)})
+        
+        st.table(results)
+
+        # PDF Download Section
+        pdf_data = create_pdf(results, high_p, low_p, "Nifty Fibonacci Analysis")
+        st.download_button(
+            label="📥 Download Fibonacci PDF",
+            data=pdf_data,
+            file_name="nifty_fib_report.pdf",
+            mime="application/pdf"
+        )
+
+# --- TOOL 2: SQUARE ROOT & MATH ---
+elif tool == "Square Root & Math":
+    st.header("🧮 Advanced Math Tool")
+    
+    num = st.number_input("Enter number for Square & Root", value=1.0)
+    
+    if st.button("Calculate Math"):
+        sq = num ** 2
+        root = "N/A (Negative)" if num < 0 else round(math.sqrt(num), 4)
+        
+        c1, c2 = st.columns(2)
+        c1.metric("Square", sq)
+        c2.metric("Square Root", root)
+        
+        # Simple PDF for Math results
+        math_results = [
+            {"Level": "Square", "Value": sq},
+            {"Level": "Square Root", "Value": root}
+        ]
+        pdf_math = create_pdf(math_results, num, "N/A", "Math Results Report")
+        st.download_button("📥 Download Math PDF", pdf_math, "math_report.pdf", "application/pdf")
